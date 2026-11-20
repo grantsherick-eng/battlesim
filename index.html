@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snorlax vs Mewtwo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      background: black;
+      border: 2px solid #333;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game" width="400" height="400"></canvas>
+
+<script>
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // Load images safely without freezing the game
+  const missingFiles = [];
+  function loadSpriteImg(path) {
+    const img = new Image();
+    img.loaded = false;
+    img.onload = () => { img.loaded = true; };
+    img.onerror = () => {
+      if (!missingFiles.includes(path)) missingFiles.push(path);
+    };
+    img.src = path;
+    return img;
+  }
+
+  const imgs = {
+    battle: loadSpriteImg("images/battle.png"),
+    battle2: loadSpriteImg("images/battle2.png"),
+    start: loadSpriteImg("images/start.png"),
+    mewtwo: loadSpriteImg("images/mewtwo.png"),
+    snorlax: loadSpriteImg("images/snorlax.png"),
+    slam: loadSpriteImg("images/bodyslam.png"),
+    rest: loadSpriteImg("images/rest.png"),
+    snore: loadSpriteImg("images/snore.png"),
+    yawn: loadSpriteImg("images/yawn.png")
+  };
+
+  // Game State
+  let startActive = true;
+  let mewtwoHP = 100;
+  let snorlaxHP = 100;
+  let turn = "player";
+  let turnTimer = 0;
+  let mewtwoDrowsy = false;
+  let mewtwoAsleep = 0;
+
+  // Sprite positions & sizes (matches your Code.org layout)
+  const sprites = {
+    start:   { x: 200, y: 300, scale: 1,   w: 100, h: 40 },
+    mewtwo:  { x: 300, y: 130, scale: 0.3, w: 80,  h: 80 },
+    snorlax: { x: 90,  y: 250, scale: 0.5, w: 90,  h: 90 },
+    slam:    { x: 264, y: 280, scale: 1,   w: 85,  h: 30 },
+    rest:    { x: 370, y: 280, scale: 1,   w: 85,  h: 30 },
+    snore:   { x: 264, y: 320, scale: 1,   w: 85,  h: 30 },
+    yawn:    { x: 370, y: 320, scale: 1,   w: 85,  h: 30 }
+  };
+
+  function drawCentered(img, sp, fallbackLabel) {
+    if (img.loaded) {
+      const w = img.width * sp.scale;
+      const h = img.height * sp.scale;
+      sp.w = w;
+      sp.h = h;
+      ctx.drawImage(img, sp.x - w / 2, sp.y - h / 2, w, h);
+    } else {
+      ctx.fillStyle = "#444";
+      ctx.fillRect(sp.x - sp.w / 2, sp.y - sp.h / 2, sp.w, sp.h);
+      ctx.fillStyle = "white";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(fallbackLabel, sp.x, sp.y + 4);
+    }
+  }
+
+  function isClicked(mx, my, sp) {
+    return (
+      mx >= sp.x - sp.w / 2 &&
+      mx <= sp.x + sp.w / 2 &&
+      my >= sp.y - sp.h / 2 &&
+      my <= sp.y + sp.h / 2
+    );
+  }
+
+  // Handle Mouse Clicks
+  canvas.addEventListener("mousedown", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (startActive) {
+      if (isClicked(mx, my, sprites.start)) {
+        startActive = false;
+      }
+      return;
+    }
+
+    if (turn === "player" && mewtwoHP > 0 && snorlaxHP > 0) {
+      if (isClicked(mx, my, sprites.slam)) {
+        mewtwoHP -= 7;
+        startMewtwoDelay();
+      } else if (isClicked(mx, my, sprites.rest)) {
+        snorlaxHP += 15;
+        startMewtwoDelay();
+      } else if (isClicked(mx, my, sprites.snore)) {
+        mewtwoHP -= 4;
+        startMewtwoDelay();
+      } else if (isClicked(mx, my, sprites.yawn)) {
+        if (mewtwoAsleep === 0) mewtwoDrowsy = true;
+        startMewtwoDelay();
+      }
+    }
+  });
+
+  function startMewtwoDelay() {
+    turn = "mewtwo";
+    turnTimer = 30; // 1 second at 30 FPS
+  }
+
+  function mewtwoTurn() {
+    if (mewtwoHP <= 0) return;
+
+    if (mewtwoAsleep > 0) {
+      mewtwoAsleep--;
+      return;
+    }
+
+    const attack = Math.floor(Math.random() * 3) + 1;
+    if (attack === 1) {
+      snorlaxHP -= 18;
+    } else if (attack === 2) {
+      snorlaxHP -= 12;
+    } else if (attack === 3) {
+      mewtwoHP += 15;
+    }
+
+    if (mewtwoDrowsy) {
+      mewtwoDrowsy = false;
+      mewtwoAsleep = 2;
+    }
+  }
+
+  // Main 30 FPS Game Loop
+  setInterval(() => {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, 400, 400);
+
+    // Draw Background
+    const bg = startActive ? imgs.battle : imgs.battle2;
+    if (bg.loaded) {
+      const bw = bg.width * 0.8;
+      const bh = bg.height * 0.8;
+      ctx.drawImage(bg, 200 - bw / 2, 200 - bh / 2, bw, bh);
+    }
+
+    if (startActive) {
+      drawCentered(imgs.start, sprites.start, "START");
+    } else {
+      drawCentered(imgs.snorlax, sprites.snorlax, "snorlax");
+      drawCentered(imgs.mewtwo, sprites.mewtwo, "mewtwo");
+      drawCentered(imgs.slam, sprites.slam, "slam");
+      drawCentered(imgs.rest, sprites.rest, "rest");
+      drawCentered(imgs.snore, sprites.snore, "snore");
+      drawCentered(imgs.yawn, sprites.yawn, "yawn");
+
+      if (turn === "mewtwo") {
+        turnTimer--;
+        if (turnTimer <= 0) {
+          mewtwoTurn();
+          turn = "player";
+        }
+      }
+
+      // Clamp HP between 0 and 100
+      mewtwoHP = Math.max(0, Math.min(100, mewtwoHP));
+      snorlaxHP = Math.max(0, Math.min(100, snorlaxHP));
+
+      // Draw Health Bars
+      ctx.fillStyle = "green";
+      ctx.fillRect(70, 112, mewtwoHP, 10);
+      ctx.fillRect(300, 217, snorlaxHP, 10);
+    }
+
+    // Show any missing image filenames at the top so you can fix them
+    if (missingFiles.length > 0) {
+      ctx.fillStyle = "red";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Missing: " + missingFiles.join(", "), 10, 16);
+    }
+  }, 1000 / 30);
+</script>
+</body>
+</html>
